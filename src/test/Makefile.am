@@ -8,11 +8,7 @@ endif
 
 TESTS = $(check_PROGRAMS)
 
-if USE_FSAL_GPFS
 check_PROGRAMS                = test_anon_support test_access_list_types test_mesure_temps test_glist
-else
-check_PROGRAMS                = test_mesure_temps 
-endif 
 
 liboutils_profiling_la_SOURCES = MesureTemps.c ../include/MesureTemps.h
 
@@ -36,7 +32,7 @@ COMMON_LDADD = ../Protocols/NFS/libnfsproto.la                   \
                $(FSAL_LIB)                                       \
                ../Log/liblog.la                                  \
                ../ConfigParsing/libConfigParsing.la              \
-               ../XDR/libnfs_mnt_xdr.la                          \
+               ../Protocols/XDR/libnfs_mnt_xdr.la                \
                ../SemN/libSemN.la                                \
                ../RW_Lock/librwlock.la                           \
                ../Common/libcommon_utils.la                      \
