@@ -19,28 +19,7 @@
 #include <string.h> /* For strncpy */
 
 #include "fsal.h"
-#include "fsal_types.h"
 #include "fsal_glue.h"
-
-const char *fsal_function_names[] = {
-  "FSAL_lookup", "FSAL_access", "FSAL_create", "FSAL_mkdir", "FSAL_truncate",
-  "FSAL_getattrs", "FSAL_setattrs", "FSAL_link", "FSAL_opendir", "FSAL_readdir",
-  "FSAL_closedir", "FSAL_open", "FSAL_read", "FSAL_write", "FSAL_close",
-  "FSAL_readlink", "FSAL_symlink", "FSAL_rename", "FSAL_unlink", "FSAL_mknode",
-  "FSAL_static_fsinfo", "FSAL_dynamic_fsinfo", "FSAL_rcp", "FSAL_Init",
-  "FSAL_get_stats", "FSAL_lock", "FSAL_changelock", "FSAL_unlock",
-  "FSAL_BuildExportContext", "FSAL_InitClientContext", "FSAL_GetClientContext",
-  "FSAL_lookupPath", "FSAL_lookupJunction", "FSAL_test_access",
-  "FSAL_rmdir", "FSAL_CleanObjectResources", "FSAL_open_by_name", "FSAL_open_by_fileid",
-  "FSAL_ListXAttrs", "FSAL_GetXAttrValue", "FSAL_SetXAttrValue", "FSAL_GetXAttrAttrs",
-  "FSAL_close_by_fileid", "FSAL_setattr_access", "FSAL_merge_attrs", "FSAL_rename_access",
-  "FSAL_unlink_access", "FSAL_link_access", "FSAL_create_access", "FSAL_getlock", "FSAL_CleanUpExportContext",
-  "FSAL_getextattrs", "FSAL_sync", "FSAL_getattrs_descriptor",
-  "FSAL_get_lock_support", "FSAL_lock_op_no_owner", "FSAL_lock_op_owner"
-};
-
-/* define this so we can use Return, ReturnStatus, and ReturnCode macros in glue layer */
-#define fsal_increment_nbcall( _f_,_struct_status_ )
 
 int __thread my_fsalid = -1 ;
 
@@ -62,7 +41,7 @@ int FSAL_name2fsalid( char * fsname )
    else if( !strncasecmp( fsname, "HPSS",     MAXNAMLEN ) ) return FSAL_HPSS_ID ;
    else if( !strncasecmp( fsname, "SNMP",     MAXNAMLEN ) ) return FSAL_SNMP_ID ;
    else if( !strncasecmp( fsname, "ZFS",      MAXNAMLEN ) ) return FSAL_ZFS_ID  ;
-   else if( !strncasecmp( fsname, "FUSELIKE", MAXNAMLEN ) ) return FSAL_FUSELIKE_ID ; 
+   else if( !strncasecmp( fsname, "FUSELIKE", MAXNAMLEN ) ) return FSAL_FUSELIKE_ID ;
    else if( !strncasecmp( fsname, "LUSTRE",   MAXNAMLEN ) ) return FSAL_LUSTRE_ID ;
    else if( !strncasecmp( fsname, "POSIX",    MAXNAMLEN ) ) return FSAL_POSIX_ID ;
    else if( !strncasecmp( fsname, "VFS",      MAXNAMLEN ) ) return FSAL_VFS_ID ;
@@ -92,7 +71,7 @@ char * FSAL_fsalid2name( int fsalid )
 		return "ZFS" ;
 		break ;
 
-	case FSAL_FUSELIKE_ID: 
+	case FSAL_FUSELIKE_ID:
 		return "FUSELIKE" ;
 		break ;
 
@@ -128,7 +107,7 @@ char * FSAL_fsalid2name( int fsalid )
   return "You should not see this message... Implementation error !!!!" ;
 } /* FSAL_fsalid2name */
 
-/* Split the fsal_param into a fsalid and a path for a fsal lib 
+/* Split the fsal_param into a fsalid and a path for a fsal lib
  * for example "XFS:/usr/lib/libfsalxfs.so.1.1.0" will produce FSAL_XFS_ID and "/usr/lib/libfsalxfs.so.1.1.0"  */
 int FSAL_param_load_fsal_split( char * param, int * pfsalid, char * pathlib )
 {
@@ -136,7 +115,6 @@ int FSAL_param_load_fsal_split( char * param, int * pfsalid, char * pathlib )
   int foundcolon = 0 ;
 
   char strwork[MAXPATHLEN] ;
-  char str1[MAXNAMLEN] ;
 
   if( !param || !pfsalid || !pathlib )
     return -1 ;
@@ -148,8 +126,8 @@ int FSAL_param_load_fsal_split( char * param, int * pfsalid, char * pathlib )
        {
          foundcolon = 1 ;
          *p1 = '\0';
-	 
-         break ; 
+
+         break ;
        }
    }
 
@@ -172,7 +150,7 @@ int FSAL_Is_Loaded( int fsalid )
   return (fsal_functions_array[fsalid].fsal_access == NULL)?FALSE:TRUE ;
 }
 
-void FSAL_SetId( int fsalid ) 
+void FSAL_SetId( int fsalid )
 {
   my_fsalid = fsalid ;
 }
@@ -243,7 +221,18 @@ fsal_status_t FSAL_CleanUpExportContext(fsal_export_context_t * p_export_context
 
 fsal_status_t FSAL_InitClientContext(fsal_op_context_t * p_thr_context)
 {
-  return fsal_functions.fsal_initclientcontext(p_thr_context);
+  /* sanity check */
+  if(!p_thr_context)
+    Return(ERR_FSAL_FAULT, 0, INDEX_FSAL_InitClientContext);
+
+  if(fsal_functions.fsal_initclientcontext == NULL) {
+	  /* initialy set the export entry to none */
+	  p_thr_context->export_context = NULL;
+
+	  Return(ERR_FSAL_NO_ERROR, 0, INDEX_FSAL_InitClientContext);
+  } else {
+	  return fsal_functions.fsal_initclientcontext(p_thr_context);
+  }
 }
 
 fsal_status_t FSAL_GetClientContext(fsal_op_context_t * p_thr_context,  /* IN/OUT  */
@@ -253,8 +242,43 @@ fsal_status_t FSAL_GetClientContext(fsal_op_context_t * p_thr_context,  /* IN/OU
                                     fsal_gid_t * alt_groups,    /* IN */
                                     fsal_count_t nb_alt_groups /* IN */ )
 {
-  return fsal_functions.fsal_getclientcontext(p_thr_context, p_export_context, uid, gid,
-                                              alt_groups, nb_alt_groups);
+  fsal_count_t ng = nb_alt_groups;
+  unsigned int i;
+
+  /* sanity check */
+  if(!p_thr_context || !p_export_context ||
+     ((ng > 0) && (alt_groups == NULL)))
+	  Return(ERR_FSAL_FAULT, 0, INDEX_FSAL_GetClientContext);
+
+  if(fsal_functions.fsal_getclientcontext == NULL) {
+	  /* set the export specific context */
+	  p_thr_context->export_context = p_export_context;
+	  p_thr_context->credential.user = uid;
+	  p_thr_context->credential.group = gid;
+
+	  if(ng > FSAL_NGROUPS_MAX) /* this artificially truncates the group list ! */
+		  ng = FSAL_NGROUPS_MAX;
+	  p_thr_context->credential.nbgroups = ng;
+
+	  for(i = 0; i < ng; i++)
+		  p_thr_context->credential.alt_groups[i] = alt_groups[i];
+
+	  if(isFullDebug(COMPONENT_FSAL)) {
+		  /* traces: prints p_credential structure */
+
+		  LogFullDebug(COMPONENT_FSAL, "credential modified:\tuid = %d, gid = %d",
+			       p_thr_context->credential.user,
+			       p_thr_context->credential.group);
+		  for(i = 0; i < p_thr_context->credential.nbgroups; i++)
+			  LogFullDebug(COMPONENT_FSAL, "\tAlt grp: %d",
+				       p_thr_context->credential.alt_groups[i]);
+	  }
+	  Return(ERR_FSAL_NO_ERROR, 0, INDEX_FSAL_GetClientContext);
+  } else {
+	  return fsal_functions.fsal_getclientcontext(p_thr_context, p_export_context,
+						      uid, gid,
+						      alt_groups, nb_alt_groups);
+  }
 }
 
 fsal_status_t FSAL_create(fsal_handle_t * p_parent_directory_handle,    /* IN */
@@ -697,9 +721,9 @@ unsigned int FSAL_Handle_to_RBTIndex(fsal_handle_t * p_handle, unsigned int cook
 }
 
 unsigned int FSAL_Handle_to_Hash_both(fsal_handle_t * p_handle, unsigned int cookie, unsigned int alphabet_len,
-                                      unsigned int index_size, unsigned int * phashval, unsigned int *prbtval ) 
+                                      unsigned int index_size, unsigned int * phashval, unsigned int *prbtval )
 {
-  if( fsal_functions.fsal_handle_to_hash_both != NULL ) 
+  if( fsal_functions.fsal_handle_to_hash_both != NULL )
     return fsal_functions.fsal_handle_to_hash_both( p_handle, cookie, alphabet_len, index_size, phashval, prbtval) ;
   else
     {

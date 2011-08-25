@@ -50,7 +50,7 @@ GA_PROG_DOXYGEN
 # define everything necessary for accessing large files (64bits offset)
 AC_SYS_LARGEFILE
 
-CFLAGS="$CFLAGS -D_REENTRANT"
+CFLAGS="$CFLAGS -D_REENTRANT -Wall -Wimplicit -Wformat -Wmissing-braces -Wno-pointer-sign"
 
 # Version number for shared object
 LIBVERSION=`echo $VERSION | sed -e 's/\./:/g'`
@@ -328,7 +328,7 @@ GA_ENABLE_FLAG(  [debug-symbols],	 [include debug symbols to binaries (-g option
 GA_ENABLE_FLAG( [profiling], [turn on code profiling (-g and -pg)], [-g -pg] )
 
 # enable code profiling
-GA_ENABLE_FLAG( [strict-compile], [turn on strict compiler flags], [-Werror -Wimplicit -Wformat -Wmissing-braces] )
+GA_ENABLE_FLAG( [strict-compile], [turn on strict compiler flags], [-Werror -Wimplicit -Wformat -Wmissing-braces -Wreturn-type -Wunused-variable -Wuninitialized] )
 
 # NFSv4 ACL
 GA_ENABLE_AM_CONDITION([nfs4-acl],[disable NFSv4 ACL support],[USE_NO_NFS4_ACL])
@@ -592,11 +592,11 @@ case $FSAL in
 		AC_DEFINE([_USE_GPFS], 1, [GANESHA exports GPFS Filesystem])
 		AC_CHECK_HEADERS([gpfs_nfs.h], [], [AC_MSG_ERROR(missing gpfs include files)])
 		AC_CHECK_DECL([gpfs_ganesha], [], [AC_MSG_ERROR(missing gpfs_ganesha function)], [[#include <gpfs_nfs.h>]])
-		AC_CHECK_DECLS([OPENHANDLE_NAME_TO_HANDLE, 
+		AC_CHECK_DECLS([OPENHANDLE_NAME_TO_HANDLE,
                                 OPENHANDLE_OPEN_BY_HANDLE,
                                 OPENHANDLE_LINK_BY_FD,
 		                OPENHANDLE_READLINK_BY_FD,
-                                OPENHANDLE_STAT_BY_HANDLE, 
+                                OPENHANDLE_STAT_BY_HANDLE,
                                 XATTR_STAT,
                                 XATTR_MODE,
                                 XATTR_UID,
@@ -634,7 +634,7 @@ case $FSAL in
 		  if test `uname -r |cut -d. -f1` -lt 2 ; then
 		   AC_MSG_ERROR(Kernel is too old to handle open_by_handle)
                   fi
-		  if test `uname -r |cut -d. -f2` -lt 6 ; then 
+		  if test `uname -r |cut -d. -f2` -lt 6 ; then
 		   AC_MSG_ERROR(Kernel is too old to handle open_by_handle)
 		  fi
 		  if test `uname -r |cut -d. -f3 | cut -d- -f1` -lt 39 ; then
@@ -688,9 +688,9 @@ case $FSAL in
 				"7."*)
 					AC_DEFINE([_USE_PGSQL], 1, [Using PostgreSQL database])
 					;;
-				"8."*)
+				"8."*|"9."*)
 					AC_DEFINE([_USE_PGSQL], 1, [Using PostgreSQL database])
-					AC_DEFINE([_PGSQL8], 1, [Using PostgreSQL version 8.x])
+					AC_DEFINE([_PGSQL8], 1, [Using PostgreSQL version >= 8.x])
 					;;
 				*)
 					AC_MSG_ERROR("Unsupported PostgreSQL version: $PGSQL_VERSION")

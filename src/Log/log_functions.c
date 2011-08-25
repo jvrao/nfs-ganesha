@@ -68,6 +68,24 @@ log_level_t tabLogLevel[NB_LOG_LEVEL] =
   {NIV_FULL_DEBUG, "NIV_FULL_DEBUG", LOG_DEBUG}
 };
 
+/* Function names for logging and SNMP stats etc. */
+
+const char *fsal_function_names[] = {
+  "FSAL_lookup", "FSAL_access", "FSAL_create", "FSAL_mkdir", "FSAL_truncate",
+  "FSAL_getattrs", "FSAL_setattrs", "FSAL_link", "FSAL_opendir", "FSAL_readdir",
+  "FSAL_closedir", "FSAL_open", "FSAL_read", "FSAL_write", "FSAL_close",
+  "FSAL_readlink", "FSAL_symlink", "FSAL_rename", "FSAL_unlink", "FSAL_mknode",
+  "FSAL_static_fsinfo", "FSAL_dynamic_fsinfo", "FSAL_rcp", "FSAL_Init",
+  "FSAL_get_stats", "FSAL_lock", "FSAL_changelock", "FSAL_unlock",
+  "FSAL_BuildExportContext", "FSAL_InitClientContext", "FSAL_GetClientContext",
+  "FSAL_lookupPath", "FSAL_lookupJunction", "FSAL_test_access",
+  "FSAL_rmdir", "FSAL_CleanObjectResources", "FSAL_open_by_name", "FSAL_open_by_fileid",
+  "FSAL_ListXAttrs", "FSAL_GetXAttrValue", "FSAL_SetXAttrValue", "FSAL_GetXAttrAttrs",
+  "FSAL_close_by_fileid", "FSAL_setattr_access", "FSAL_merge_attrs", "FSAL_rename_access",
+  "FSAL_unlink_access", "FSAL_link_access", "FSAL_create_access", "FSAL_getlock", "FSAL_CleanUpExportContext",
+  "FSAL_getextattrs", "FSAL_sync"
+};
+
 /* les code d'error */
 errctx_t __attribute__ ((__unused__)) tab_systeme_err[] =
 {
@@ -533,6 +551,7 @@ static void DisplayLogString_valist(char *buff_dest, char * function, log_compon
   char texte[STR_LEN_TXT];
   struct tm the_date;
   time_t tm;
+  const char *threadname = Log_GetThreadFunction(component != COMPONENT_LOG_EMERG);
 
   tm = time(NULL);
   Localtime_r(&tm, &the_date);
@@ -540,17 +559,26 @@ static void DisplayLogString_valist(char *buff_dest, char * function, log_compon
   /* Ecriture sur le fichier choisi */
   log_vsnprintf(texte, STR_LEN_TXT, format, arguments);
 
-  snprintf(buff_dest, STR_LEN_TXT,
-           "%.2d/%.2d/%.4d %.2d:%.2d:%.2d epoch=%ld : %s : %s-%d[%s] :%s\n",
-           the_date.tm_mday, the_date.tm_mon + 1, 1900 + the_date.tm_year,
-           the_date.tm_hour, the_date.tm_min, the_date.tm_sec, tm, nom_host,
-           nom_programme, getpid(), function,
-           texte);
+  if(LogComponents[component].comp_log_level < LogComponents[LOG_MESSAGE_VERBOSITY].comp_log_level)
+    snprintf(buff_dest, STR_LEN_TXT,
+             "%.2d/%.2d/%.4d %.2d:%.2d:%.2d epoch=%ld : %s : %s-%d[%s] :%s\n",
+             the_date.tm_mday, the_date.tm_mon + 1, 1900 + the_date.tm_year,
+             the_date.tm_hour, the_date.tm_min, the_date.tm_sec, tm, nom_host,
+             nom_programme, getpid(), threadname,
+             texte);
+  else
+    snprintf(buff_dest, STR_LEN_TXT,
+             "%.2d/%.2d/%.4d %.2d:%.2d:%.2d epoch=%ld : %s : %s-%d[%s] :%s :%s\n",
+             the_date.tm_mday, the_date.tm_mon + 1, 1900 + the_date.tm_year,
+             the_date.tm_hour, the_date.tm_min, the_date.tm_sec, tm, nom_host,
+             nom_programme, getpid(), threadname, function,
+             texte);
 }                               /* DisplayLogString_valist */
 
 static int DisplayLogSyslog_valist(log_components_t component, char * function, int level, char * format, va_list arguments)
 {
   char texte[STR_LEN_TXT];
+  const char *threadname = Log_GetThreadFunction(component != COMPONENT_LOG_EMERG);
 
   if( !syslog_opened )
    {
@@ -561,17 +589,13 @@ static int DisplayLogSyslog_valist(log_components_t component, char * function, 
   /* Ecriture sur le fichier choisi */
   log_vsnprintf(texte, STR_LEN_TXT, format, arguments);
 
-  syslog(tabLogLevel[level].syslog_level, "[%s] :%s", function, texte);
+  if(LogComponents[component].comp_log_level < LogComponents[LOG_MESSAGE_VERBOSITY].comp_log_level)
+    syslog(tabLogLevel[level].syslog_level, "[%s] :%s", threadname, texte);
+  else
+    syslog(tabLogLevel[level].syslog_level, "[%s] :%s :%s", threadname, function, texte);
+
   return 1 ;
 } /* DisplayLogSyslog_valist */
-
-static int DisplayLogFd_valist(int fd, char * function, log_components_t component, char *format, va_list arguments)
-{
-  char tampon[STR_LEN_TXT];
-
-  DisplayLogString_valist(tampon, function, component, format, arguments);
-  return write(fd, tampon, strlen(tampon));
-}                               /* DisplayLogFd_valist */
 
 static int DisplayLogFlux_valist(FILE * flux, char * function, log_components_t component, char *format, va_list arguments)
 {
@@ -644,13 +668,13 @@ static int DisplayLogPath_valist(char *path, char * function, log_components_t c
 #else
       if((fd = open(path, O_WRONLY | O_NONBLOCK | O_APPEND | O_CREAT, masque_log)) != -1)
         {
-          if(write(fd, tampon, strlen(tampon)) < strlen(tampon)) 
+          if(write(fd, tampon, strlen(tampon)) < strlen(tampon))
           {
             fprintf(stderr, "Error: couldn't complete write to the log file, ensure disk has not filled up");
-            close(fd); 
+            close(fd);
             return ERR_FICHIER_LOG;
           }
-          
+
           /* fermeture du fichier */
           close(fd);
           return SUCCES;
@@ -828,8 +852,10 @@ int MakeLogError(char *buffer, int num_family, int num_error, int status,
 
 int log_vsnprintf(char *out, size_t taille, char *format, va_list arguments)
 {
+  /* TODO: eventually remove this entirely, but this makes the code
+   * work for now */
   return vsnprintf(out, taille, format, arguments);
-}                               /* mon_vsprintf */
+}
 
 int log_snprintf(char *out, size_t n, char *format, ...)
 {
@@ -1071,6 +1097,11 @@ log_component_info __attribute__ ((__unused__)) LogComponents[COMPONENT_COUNT] =
     SYSLOG,
     "SYSLOG"
   },
+  { LOG_MESSAGE_VERBOSITY,        "LOG_MESSAGE_VERBOSITY", "LOG MESSAGE VERBOSITY",
+    NIV_NULL,
+    SYSLOG,
+    "SYSLOG"
+  },
 };
 
 int DisplayLogComponentLevel(log_components_t component,
@@ -1181,6 +1212,9 @@ static int isValidLogPath(char *pathname)
               "%s points outside your accessible address space.",
               directory_name);
       break;
+
+    default:
+	break ;
     }
 
   return 1;

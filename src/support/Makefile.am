@@ -62,7 +62,7 @@ libsupport_la_SOURCES =  nfs_export_list.c                  \
                          ../include/stuff_alloc.h
 
 if RESULT_IS_DAEMON
-libsupport_la_LIBADD         =   ../RPCAL/librpcal.la 
+libsupport_la_LIBADD         =   ../RPCAL/librpcal.la
 endif
 
 if USE_NLM
@@ -74,7 +74,7 @@ libsupport_la_SOURCES += nfs4_acls.c
 endif
 
 if USE_NFS4_1
-libsupport_la_SOURCES += nfs_session_id.c 
+libsupport_la_SOURCES += nfs_session_id.c
 endif
 
 if ERROR_INJECTION
@@ -96,7 +96,7 @@ test_support_LDADD    	= libsupport.la \
                           ../HashTable/libhashtable.la \
                           ../RW_Lock/librwlock.la
 
-new: clean all 
+new: clean all
 
 doc:
 	doxygen ./doxygen.conf
