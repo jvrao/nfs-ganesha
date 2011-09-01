@@ -7,7 +7,8 @@ BUDDY_LIB_FLAGS =
 endif
 
 #check_PROGRAMS = test_nfs_ip_stats test_nfs_ip_name test_support
-check_PROGRAMS = test_nfs_ip_stats test_nfs_ip_name
+check_PROGRAMS = test_nfs_ip_stats test_nfs_ip_name test_support
+check_SCRIPTS = test_libsupport_nlm.sh
 
 test_nfs_ip_stats_SOURCES = test_nfs_ip_stats.c
 test_nfs_ip_stats_LDADD = libsupport.la ../HashTable/libhashtable.la $(BUDDY_LIB_FLAGS) ../Log/liblog.la ../RW_Lock/librwlock.la
@@ -15,6 +16,14 @@ test_nfs_ip_stats_LDADD = libsupport.la ../HashTable/libhashtable.la $(BUDDY_LIB
 test_nfs_ip_name_SOURCES = test_nfs_ip_name.c
 test_nfs_ip_name_LDADD = libsupport.la ../HashTable/libhashtable.la $(BUDDY_LIB_FLAGS) ../Log/liblog.la ../RW_Lock/librwlock.la ../ConfigParsing/libConfigParsing.la
 
+test_support_SOURCES    = test_support.c
+test_support_LDADD    	= libsupport.la \
+                          ../Log/liblog.la\
+                          ../NFS_Protocols/libnfsproto.la\
+                          $(BUDDY_LIB_FLAGS)\
+                          ../XDR/libnfs_mnt_xdr.la \
+                          ../HashTable/libhashtable.la \
+                          ../RW_Lock/librwlock.la
 
 TESTS = test_nfs_ip_stats test_nfs_ip_name $(check_SCRIPTS)
 
@@ -76,19 +85,6 @@ libsupport_la_SOURCES += err_inject.c
 endif
 
 libsupport_la_DEPENDENCIES = $(libsupport_la_SOURCES) $(libsupport_la_LIBADD)
-
-#TESTS =
-
-check_SCRIPTS = test_libsupport_nlm.sh
-
-test_support_SOURCES    = test_support.c
-test_support_LDADD    	= libsupport.la \
-                          ../Log/liblog.la\
-                          ../NFS_Protocols/libnfsproto.la\
-                          $(BUDDY_LIB_FLAGS)\
-                          ../XDR/libnfs_mnt_xdr.la \
-                          ../HashTable/libhashtable.la \
-                          ../RW_Lock/librwlock.la
 
 new: clean all
 

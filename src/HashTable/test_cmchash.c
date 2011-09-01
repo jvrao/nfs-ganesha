@@ -10,16 +10,16 @@
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- * 
+ *
  * ---------------------------------------
  *
  * Source du test de la lib de gestion des tables de hachage
@@ -306,24 +306,40 @@ int main(int argc, char *argv[])
     }
   LogTest("-----------------------------------------");
 
+  /*********************************
+   *
+   *  We have to add key 12 back now so that random delete tests don't break when they hit us
+   *
+   */
+  buffkey.len = strlen(strtab[CRITERE]);
+  buffkey.pdata = strtab[CRITERE];
+
+  buffval.len = strlen(strtab[CRITERE]);
+  buffval.pdata = strtab[CRITERE];
+
+  rc = HashTable_Set(ht, &buffkey, &buffval);
+  LogTest("Added back %s , %d , return = %d", strtab[CRITERE], CRITERE, rc);
+
+
+
   LogTest("Destruction of %d items, taken at random (well if you want ... I use srandom)",
           MAXDESTROY);
 
   srandom(getpid());
   random_val = random() % MAXTEST;
 
-  /* 
+  /*
      if we end up with a random value less than CRITERE_2 we'll
      overrun holes in the hash when we do our delete runs.  This
      ensures we start above there.
   */
-  if (random_val <= CRITERE_2) 
+  if (random_val <= CRITERE_2)
     random_val = CRITERE_2 + 1;
 
   MesureTemps(&debut, NULL);
   for(i = 0; i < MAXDESTROY; i++)
     {
-      /* 
+      /*
       it used to be that the random values were chosen with
       repeated calls to random(), but if the same key comes up twice,
       that causes a fail.  This way we start with a random value and
@@ -337,7 +353,7 @@ int main(int argc, char *argv[])
       buffkey.pdata = tmpstr;
 
       rc = HashTable_Del(ht, &buffkey, NULL, NULL);
-      
+
 
       if(rc != HASHTABLE_SUCCESS)
         {
@@ -407,7 +423,8 @@ int main(int argc, char *argv[])
           statistiques.computed.average_rbt_num_node);
 
   /* Test sur la pertinence des valeurs de statistiques */
-  if(statistiques.dynamic.ok.nb_set != MAXTEST)
+  /* we add one because the extra set to return key 12 */
+  if(statistiques.dynamic.ok.nb_set != MAXTEST + 1)
     {
       LogTest("Test FAILED: Incorrect statistics: ok.nb_set ");
       exit(1);
