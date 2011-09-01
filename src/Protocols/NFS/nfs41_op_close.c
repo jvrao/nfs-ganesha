@@ -39,26 +39,12 @@
 #include "solaris_port.h"
 #endif
 
-#include <stdio.h>
-#include <string.h>
 #include <pthread.h>
-#include <fcntl.h>
-#include <sys/file.h>           /* for having FNDELAY */
-#include "HashData.h"
-#include "HashTable.h"
 #include "log_macros.h"
 #include "stuff_alloc.h"
-#include "nfs23.h"
 #include "nfs4.h"
-#include "mount.h"
-#include "nfs_core.h"
-#include "cache_inode.h"
-#include "cache_content.h"
-#include "nfs_exports.h"
-#include "nfs_creds.h"
+#include "sal_functions.h"
 #include "nfs_proto_functions.h"
-#include "nfs_tools.h"
-#include "nfs_file_handle.h"
 
 /**
  *
@@ -80,9 +66,10 @@
 int nfs41_op_close(struct nfs_argop4 *op, compound_data_t * data, struct nfs_resop4 *resp)
 {
   char __attribute__ ((__unused__)) funcname[] = "nfs4_op_close";
-  cache_inode_state_t *pstate_found = NULL;
-
-  cache_inode_status_t cache_status;
+  state_t              * pstate_found = NULL;
+  cache_inode_status_t   cache_status;
+  state_status_t         state_status;
+  int                    rc;
 
   memset(&res_CLOSE4, 0, sizeof(res_CLOSE4));
   resp->resop = NFS4_OP_CLOSE;
@@ -129,16 +116,18 @@ int nfs41_op_close(struct nfs_argop4 *op, compound_data_t * data, struct nfs_res
       return res_CLOSE4.status;
     }
 
-  /* Get the related state */
-  if(cache_inode_get_state(arg_CLOSE4.open_stateid.other,
-                           &pstate_found,
-                           data->pclient, &cache_status) != CACHE_INODE_SUCCESS)
+  /* Check stateid correctness and get pointer to state */
+  if((rc = nfs4_Check_Stateid(&arg_CLOSE4.open_stateid,
+                              data->current_entry,
+                              0LL,
+                              &pstate_found,
+                              data,
+                              STATEID_SPECIAL_FOR_LOCK,
+                              "CLOSE")) != NFS4_OK)
     {
-      if(cache_status == CACHE_INODE_NOT_FOUND)
-        res_CLOSE4.status = NFS4ERR_BAD_STATEID;
-      else
-        res_CLOSE4.status = NFS4ERR_INVAL;
-
+      res_CLOSE4.status = rc;
+      LogDebug(COMPONENT_STATE,
+               "CLOSE failed nfs4_Check_Stateid");
       return res_CLOSE4.status;
     }
 
@@ -152,17 +141,18 @@ int nfs41_op_close(struct nfs_argop4 *op, compound_data_t * data, struct nfs_res
 #endif
 
   /* Update the seqid for the open_owner */
-  P(pstate_found->powner->lock);
-  pstate_found->powner->seqid += 1;
-  V(pstate_found->powner->lock);
+  P(pstate_found->state_powner->so_mutex);
+  pstate_found->state_powner->so_owner.so_nfs4_owner.so_seqid += 1;
+  V(pstate_found->state_powner->so_mutex);
 
   /* Prepare the result */
-  res_CLOSE4.CLOSE4res_u.open_stateid.seqid = pstate_found->seqid + 1;
+  res_CLOSE4.CLOSE4res_u.open_stateid.seqid = pstate_found->state_seqid + 1;
 
   /* Close the file in FSAL through the cache inode */
   P_w(&data->current_entry->lock);
   if(cache_inode_close(data->current_entry,
-                       data->pclient, &cache_status) != CACHE_INODE_SUCCESS)
+                       data->pclient,
+                       &cache_status) != CACHE_INODE_SUCCESS)
     {
       V_w(&data->current_entry->lock);
 
@@ -172,14 +162,15 @@ int nfs41_op_close(struct nfs_argop4 *op, compound_data_t * data, struct nfs_res
   V_w(&data->current_entry->lock);
 
   /* File is closed, release the corresponding state */
-  if(cache_inode_del_state_by_key(arg_CLOSE4.open_stateid.other,
-                                  data->pclient, &cache_status) != CACHE_INODE_SUCCESS)
+  if(state_del_by_key(arg_CLOSE4.open_stateid.other,
+                      data->pclient,
+                      &state_status) != STATE_SUCCESS)
     {
-      res_CLOSE4.status = nfs4_Errno(cache_status);
+      res_CLOSE4.status = nfs4_Errno_state(state_status);
       return res_CLOSE4.status;
     }
 
-  memcpy(res_CLOSE4.CLOSE4res_u.open_stateid.other, arg_CLOSE4.open_stateid.other, 12);;
+  memcpy(res_CLOSE4.CLOSE4res_u.open_stateid.other, arg_CLOSE4.open_stateid.other, OTHERSIZE);;
 
   res_CLOSE4.status = NFS4_OK;
 
@@ -201,3 +192,9 @@ void nfs41_op_close_Free(CLOSE4res * resp)
   /* Nothing to be done */
   return;
 }                               /* nfs41_op_close_Free */
+
+void nfs4_op_close_CopyRes(CLOSE4res * resp_dst, CLOSE4res * resp_src)
+{
+  /* Nothing to be done */
+  return;
+}

@@ -6,7 +6,8 @@ else
 BUDDY_LIB_FLAGS =
 endif
 
-check_PROGRAMS = test_nfs_ip_stats test_nfs_ip_name test_support
+#check_PROGRAMS = test_nfs_ip_stats test_nfs_ip_name test_support
+check_PROGRAMS = test_nfs_ip_stats test_nfs_ip_name
 
 test_nfs_ip_stats_SOURCES = test_nfs_ip_stats.c
 test_nfs_ip_stats_LDADD = libsupport.la ../HashTable/libhashtable.la $(BUDDY_LIB_FLAGS) ../Log/liblog.la ../RW_Lock/librwlock.la
@@ -28,9 +29,6 @@ libsupport_la_SOURCES =  nfs_export_list.c                  \
                          nfs_ip_name.c                      \
                          nfs_ip_stats.c                     \
                          nfs_client_id.c                    \
-                         nfs_state_id.c                     \
-                         nfs_open_owner.c                   \
-                         nfs4_tools.c                       \
                          exports.c                          \
                          fridgethr.c                        \
                          lookup3.c                          \
@@ -63,10 +61,6 @@ libsupport_la_SOURCES =  nfs_export_list.c                  \
 
 if RESULT_IS_DAEMON
 libsupport_la_LIBADD         =   ../RPCAL/librpcal.la
-endif
-
-if USE_NLM
-libsupport_la_SOURCES += nlm_util.c nlm_async.c nsm.c nlm_owner.c
 endif
 
 if USE_NFS4_ACL

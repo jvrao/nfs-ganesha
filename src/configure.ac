@@ -328,7 +328,7 @@ GA_ENABLE_FLAG(  [debug-symbols],	 [include debug symbols to binaries (-g option
 GA_ENABLE_FLAG( [profiling], [turn on code profiling (-g and -pg)], [-g -pg] )
 
 # enable code profiling
-GA_ENABLE_FLAG( [strict-compile], [turn on strict compiler flags], [-Werror -Wimplicit -Wformat -Wmissing-braces -Wreturn-type -Wunused-variable -Wuninitialized] )
+GA_ENABLE_FLAG( [strict-compile], [turn on strict compiler flags], [-Wall -Werror -Wimplicit -Wformat -Wmissing-braces -Wreturn-type -Wunused-variable -Wuninitialized -Wno-pointer-sign] )
 
 # NFSv4 ACL
 GA_ENABLE_AM_CONDITION([nfs4-acl],[disable NFSv4 ACL support],[USE_NO_NFS4_ACL])
@@ -590,8 +590,25 @@ case $FSAL in
                 LDFLAGS="$LDFLAGS -L/usr/lpp/mmfs/lib"
 
 		AC_DEFINE([_USE_GPFS], 1, [GANESHA exports GPFS Filesystem])
-		AC_CHECK_HEADERS([gpfs_nfs.h], [], [AC_MSG_ERROR(missing gpfs include files)])
-		AC_CHECK_DECL([gpfs_ganesha], [], [AC_MSG_ERROR(missing gpfs_ganesha function)], [[#include <gpfs_nfs.h>]])
+
+		AC_CHECK_HEADERS([gpfs_nfs.h], [], [AC_MSG_ERROR(missing gpfs include files)], [
+                #include <fcntl.h>
+                ])
+
+                AC_CHECK_MEMBER([struct file_handle.f_handle], [
+                                        AC_DEFINE([_GPFS_DECLARES_HANDLE], 1, [GPFS declares the handle structure])
+                                      ],
+                                      [],
+                                      [
+                                        #include <fcntl.h>
+                                        #include <gpfs_nfs.h>
+                                      ])
+
+		AC_CHECK_DECL([gpfs_ganesha], [], [AC_MSG_ERROR(missing gpfs_ganesha function)], [
+                  #include <fcntl.h>
+                  #include <gpfs_nfs.h>
+                ])
+
 		AC_CHECK_DECLS([OPENHANDLE_NAME_TO_HANDLE,
                                 OPENHANDLE_OPEN_BY_HANDLE,
                                 OPENHANDLE_LINK_BY_FD,
@@ -607,13 +624,20 @@ case $FSAL in
                                 ],
 		               [],
 		               [AC_MSG_ERROR(GPFS < 3.5.0 found, you must upgrade GPFS to use this feature)],
-		               [[#include <gpfs_nfs.h>]])
+		               [
+                                 #include <fcntl.h>
+                                 #include <gpfs_nfs.h>
+                               ])
+
 		if [[  $PNFS != "NONE" ]] ; then
 			AC_CHECK_DECLS([OPENHANDLE_LAYOUT_TYPE, OPENHANDLE_GET_DEVICEINFO, OPENHANDLE_GET_DEVICEITER,
 			                OPENHANDLE_LAYOUT_GET, OPENHANDLE_LAYOUT_RETURN],
 			               [],
 			               [AC_MSG_ERROR(missing Layout function)],
-			               [[#include <gpfs_nfs.h>]])
+			               [
+                                         #include <fcntl.h>
+                                         #include <gpfs_nfs.h>
+                                       ])
 		fi
 		AC_CHECK_LIB([gpfs], [gpfs_ganesha], [], [AC_MSG_ERROR(missing gpfs library)])
 		FSAL_CFLAGS=
@@ -627,6 +651,7 @@ case $FSAL in
                 FSAL_LDFLAGS=""
 		FSAL_LIB="\$(top_builddir)/FSAL/FSAL_VFS/libfsalvfs.la"
 		FS_NAME="vfs"
+
 		# Check for kernel version (should be at least 2.6.39)
                 if test `uname -r |cut -d. -f1` -gt 2 ; then
                    AC_MSG_RESULT(Kernel 3.0 found, life is good)
@@ -918,11 +943,13 @@ AC_CONFIG_FILES([include/Makefile
                  LRU/Makefile
                  HashTable/Makefile
                  Cache_inode/Makefile
+                 SAL/Makefile
                  File_Content/Makefile
                  File_Content_Policy/Makefile
 		 Protocols/Makefile
                  Protocols/9P/Makefile
 		 Protocols/NFS/Makefile
+		 Protocols/NLM/Makefile
 		 Protocols/PNFS/Makefile
 		 Protocols/PNFS/SPNFS_LIKE/Makefile
 		 Protocols/PNFS/PARALLEL_FS/Makefile

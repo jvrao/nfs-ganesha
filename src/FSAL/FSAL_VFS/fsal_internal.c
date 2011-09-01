@@ -75,6 +75,8 @@ static fsal_staticfsinfo_t default_posix_info = {
   TRUE,                         /* hard link support */
   TRUE,                         /* symlink support */
   FALSE,                        /* lock management */
+  FALSE,                        /* lock owners */
+  FALSE,                        /* async blocking locks */
   TRUE,                         /* named attributes */
   TRUE,                         /* handles are unique and persistent */
   {10, 0},                      /* Duration of lease at FS in seconds */
@@ -389,6 +391,10 @@ fsal_status_t fsal_internal_init_global(fsal_init_info_t * fsal_info,
            default_posix_info.symlink_support);
   LogDebug(COMPONENT_FSAL, "  lock_support  = %d  ",
            default_posix_info.lock_support);
+  LogDebug(COMPONENT_FSAL, "  lock_support_owner  = %d  ",
+           global_fs_info.lock_support_owner);
+  LogDebug(COMPONENT_FSAL, "  lock_support_async_block  = %d  ",
+           global_fs_info.lock_support_async_block);
   LogDebug(COMPONENT_FSAL, "  named_attr  = %d  ",
            default_posix_info.named_attr);
   LogDebug(COMPONENT_FSAL, "  unique_handles  = %d  ",
@@ -426,6 +432,8 @@ fsal_status_t fsal_internal_init_global(fsal_init_info_t * fsal_info,
   VFS_SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, symlink_support);
   VFS_SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, link_support);
   VFS_SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, lock_support);
+  VFS_SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, lock_support_owner);
+  VFS_SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, lock_support_async_block);
   VFS_SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, cansettime);
 
   VFS_SET_INTEGER_PARAM(global_fs_info, fs_common_info, maxread);
@@ -491,9 +499,9 @@ fsal_status_t fsal_internal_fd2handle( fsal_op_context_t *p_context,
                                        int fd,
 				       fsal_handle_t *p_handle)
 {
-  int rc = 0 ;
+  int rc = 0;
   int errsv;
-  int mnt_id = 0 ;
+  int mnt_id = 0;
 
   memset(p_handle, 0, sizeof(vfsfsal_handle_t));
 

@@ -1,4 +1,4 @@
-noinst_LTLIBRARIES            = liboutils_profiling.la 
+noinst_LTLIBRARIES            = liboutils_profiling.la
 
 if USE_BUDDY_SYSTEM
 BUDDY_LIB_FLAGS = ../BuddyMalloc/libBuddyMalloc.la
@@ -48,7 +48,7 @@ test_anon_support_SOURCES = test_anon_support.c
 test_mesure_temps_SOURCES    = test_mesure_temps.c
 test_mesure_temps_LDADD      = liboutils_profiling.la
 
-test_glist_SOURCES           = test_glist.c 
+test_glist_SOURCES           = test_glist.c
 
 check-am-local:
 	make -C $(top_builddir)

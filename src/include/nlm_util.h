@@ -27,34 +27,16 @@
 
 #include "nlm_list.h"
 #include "nlm4.h"
-#include "cache_inode.h"
+#include "sal_functions.h"
 
-struct nlm_lock_entry
-{
-  struct nlm4_lockargs arg;
-  int state;
-  int ref_count;
-  pthread_mutex_t lock;
-  struct glist_head lock_list;
-#ifdef _DEBUG_MEMLEAKS
-  struct glist_head all_locks;
-#endif
-  cache_entry_t *pentry;
-  cache_inode_client_t *pclient;
-  hash_table_t *ht;
-};
+bool_t nlm_block_data_to_fsal_context(state_nlm_block_data_t * nlm_block_data,
+                                      fsal_op_context_t      * fsal_context);
 
-typedef struct nlm_lock_entry nlm_lock_entry_t;
-
-bool_t nlm_block_data_to_fsal_context(cache_inode_nlm_block_data_t * nlm_block_data,
-                                      fsal_op_context_t            * fsal_context);
 extern const char *lock_result_str(int rc);
 extern netobj *copy_netobj(netobj * dst, netobj * src);
 extern void netobj_free(netobj * obj);
 extern void netobj_to_string(netobj *obj, char *buffer, int maxlen);
 extern int in_nlm_grace_period(void);
-extern int nlm_monitor_host(char *name);
-extern int nlm_unmonitor_host(char *name);
 
 /**
  * process_nlm_parameters: Process NLM parameters
@@ -65,6 +47,7 @@ extern int nlm_unmonitor_host(char *name);
  * exclusive:    TRUE if lock is a write lock
  * alock:        nlm4_lock request structure
  * plock:        cache_lock_desc_t to fill in from alock
+ * ht:           The cache inode hash table used to find cache inode entries
  * ppentry:      cache inode entry pointer to fill in
  * pcontext:     FSAL op context
  * pclient:      cache inode client
@@ -72,29 +55,30 @@ extern int nlm_unmonitor_host(char *name);
  *               because the caller will have nothing to do)
  * ppnlm_client: NLM Client to fill in, returns a reference to the client
  * ppowner:      NLM Owner to fill in, returns a reference to the owner
+ * ppblock_data: Data required to make a call back to the client to grant a blocked lock
  */
-int nlm_process_parameters(struct svc_req            * preq,
-                           bool_t                      exclusive,
-                           nlm4_lock                 * alock,
-                           cache_lock_desc_t         * plock,
-                           hash_table_t              * ht,
-                           cache_entry_t            ** ppentry,
-                           fsal_op_context_t         * pcontext,
-                           cache_inode_client_t      * pclient,
-                           bool_t                      care,
-                           cache_inode_nlm_client_t ** ppnlm_client,
-                           cache_lock_owner_t       ** ppowner,
-                           cache_inode_block_data_t ** ppblock_data);
+int nlm_process_parameters(struct svc_req        * preq,
+                           bool_t                  exclusive,
+                           nlm4_lock             * alock,
+                           state_lock_desc_t     * plock,
+                           hash_table_t          * ht,
+                           cache_entry_t        ** ppentry,
+                           fsal_op_context_t     * pcontext,
+                           cache_inode_client_t  * pclient,
+                           care_t                  care,
+                           state_nlm_client_t   ** ppnlm_client,
+                           state_owner_t        ** ppowner,
+                           state_block_data_t   ** ppblock_data);
 
-void nlm_process_conflict(nlm4_holder        * nlm_holder,
-                          cache_lock_owner_t * holder,
-                          cache_lock_desc_t  * conflict);
+void nlm_process_conflict(nlm4_holder       * nlm_holder,
+                          state_owner_t     * holder,
+                          state_lock_desc_t * conflict);
 
-nlm4_stats nlm_convert_cache_inode_error(cache_inode_status_t status);
+nlm4_stats nlm_convert_state_error(state_status_t status);
 
-cache_inode_status_t nlm_granted_callback(cache_entry_t        * pentry,
-                                          cache_lock_entry_t   * lock_entry,
-                                          cache_inode_client_t * pclient,
-                                          cache_inode_status_t * pstatus);
+state_status_t nlm_granted_callback(cache_entry_t        * pentry,
+                                    state_lock_entry_t   * lock_entry,
+                                    cache_inode_client_t * pclient,
+                                    state_status_t       * pstatus);
 
 #endif                          /* _NLM_UTIL_H */
