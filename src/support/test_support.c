@@ -43,9 +43,9 @@
 
 
 static char usage[] =
-    "Usage :\n"
-    "\ttest_support <test_name>\n\n"
-    "\twhere <test_name> is:\n"
+  "Usage :\n"
+  "\ttest_support <test_name>\n\n"
+  "\twhere <test_name> is:\n";
 
 int main(int argc, char **argv)
 {
