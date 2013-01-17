@@ -1427,7 +1427,7 @@ void *worker_thread(void *IndexArg)
   nfs_worker_data_t *pmydata = &(workers_data[worker_index]);
   char thr_name[32];
   gsh_xprt_private_t *xu = NULL;
-  uint32_t refcnt;
+  uint32_t reqcnt;
 
   snprintf(thr_name, sizeof(thr_name), "Worker Thread #%lu", worker_index);
   SetNameFunction(thr_name);
@@ -1528,19 +1528,18 @@ void *worker_thread(void *IndexArg)
            /* check for destroyed xprts */
            xu = (gsh_xprt_private_t *) nfsreq->r_u.nfs->xprt->xp_u1;
            pthread_mutex_lock(&nfsreq->r_u.nfs->xprt->xp_lock);
-           if (xu->flags & XPRT_PRIVATE_FLAG_DESTROYED) {
+           if (nfsreq->r_u.nfs->xprt->xp_flags & SVC_XPRT_FLAG_DESTROYED) {
                pthread_mutex_unlock(&nfsreq->r_u.nfs->xprt->xp_lock);
                goto finalize_req;
            }
-           refcnt = xu->refcnt;
+           reqcnt = xu->req_cnt;
            pthread_mutex_unlock(&nfsreq->r_u.nfs->xprt->xp_lock);
            /* execute */
            LogDebug(COMPONENT_DISPATCH,
-                    "NFS protocol request, nfsreq=%p xid=%u xprt=%p refcnt=%u",
+                    "NFS protocol request, nfsreq=%p xprt=%p req_cnt=%d",
                     nfsreq,
-                    nfsreq->r_u.nfs->msg.rm_xid,
                     nfsreq->r_u.nfs->xprt,
-                    refcnt);
+                    reqcnt);
            nfs_rpc_execute(nfsreq, pmydata);
            break;
 
@@ -1562,20 +1561,16 @@ void *worker_thread(void *IndexArg)
     finalize_req:
       /* XXX needed?  at NIV_DEBUG? */
       LogDebug(COMPONENT_DISPATCH, "Signaling completion of request");
-
-      /* Drop req_cnt and xprt refcnt, if appropriate */
       switch(nfsreq->rtype) {
-       case NFS_REQUEST:
-           pthread_mutex_lock(&nfsreq->r_u.nfs->xprt->xp_lock);
-           --(xu->req_cnt);
-           gsh_xprt_unref(
-               nfsreq->r_u.nfs->xprt, XPRT_PRIVATE_FLAG_LOCKED);
-           break;
-       case NFS_CALL:
-           break;
-       default:
-           break;
-       }
+      case NFS_REQUEST:
+	/* adjust req_cnt and return xprt ref */
+	gsh_xprt_unref(nfsreq->r_u.nfs->xprt, XPRT_PRIVATE_FLAG_DECREQ);
+	break;
+      case NFS_CALL:
+	break;
+      default:
+	break;
+      }
 
       /* Free the req by releasing the entry */
       LogFullDebug(COMPONENT_DISPATCH,
