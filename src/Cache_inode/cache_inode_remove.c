@@ -153,6 +153,18 @@ cache_inode_remove(cache_entry_t *entry,
          goto out;
      }
 
+     /* Attempt to close the fd on close. If there are v3 only opens
+      * fd will get closed, since v4 is going to pin  the entry
+      * we won't close it (CACHE_INODE_FLAG_NOT_PINNED) flag
+      */
+     cache_inode_close(to_remove_entry, NULL, CACHE_INODE_FLAG_REALLYCLOSE,
+                       &tmp_status);
+     if (tmp_status != CACHE_INODE_SUCCESS) {
+	     LogWarn(COMPONENT_CACHE_INODE_LRU,
+			     "Error closing file in cleanup: %d.",
+			     tmp_status);
+     }
+
      /* Update the attributes for the removed entry */
      (void)cache_inode_refresh_attrs_locked(to_remove_entry, context);
 
