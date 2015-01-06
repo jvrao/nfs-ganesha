@@ -483,7 +483,9 @@ GPFS {}
 	Delegations(enum, values [None, read, write, readwrite, r, w, rw],
 		    default read)
 
-	pnfs_file(bool, default false)
+	pnfs_mds(bool, default false)
+
+	pnfs_ds(bool, default false)
 
 	fsal_trace(bool, default true)
 
